@@ -101,7 +101,7 @@ export interface CardPackImportOptions {
 export interface CardPackConflictContext {
   builtinTemplateIds: Set<string>
   importedTemplateIds: Set<string>
-  importedTemplateSources: Map<string, { packId?: string }>
+  importedTemplateSources: Map<string, { packId?: string; packLabel?: string }>
   customPackCount?: number
   maxCustomPackCount?: number
 }

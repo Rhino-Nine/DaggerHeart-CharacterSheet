@@ -271,12 +271,15 @@ export function createEquipmentPackApplicationService(
 
   function buildConflictContext(snapshot: EquipmentPackStorageSnapshot): EquipmentPackConflictContext {
     const importedTemplateIds = new Set<string>()
-    const importedTemplateSources = new Map<string, { packId?: string }>()
+    const importedTemplateSources = new Map<string, { packId?: string; packLabel?: string }>()
 
     for (const entry of snapshot.packs.values()) {
       for (const template of [...entry.pack.weapons, ...entry.pack.armor]) {
         importedTemplateIds.add(template.id)
-        importedTemplateSources.set(template.id, { packId: entry.packId })
+        importedTemplateSources.set(template.id, {
+          packId: entry.packId,
+          packLabel: entry.pack.metadata.name,
+        })
       }
     }
 

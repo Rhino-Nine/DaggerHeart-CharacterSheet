@@ -10,6 +10,7 @@ import type {
 } from "@/equipment/packs/application-service"
 import type { EquipmentPackStorageSnapshot } from "@/equipment/packs/storage-types"
 import {
+  equipmentFieldLabelFromPath,
   formatLocalizedEquipmentDiagnosticMessage,
   localizeEquipmentDiagnostic,
 } from "./diagnostic-copy"
@@ -75,12 +76,31 @@ export type EquipmentUiStoreDiagnostic =
 
 export function toDiagnosticView(diagnostic: EquipmentUiStoreDiagnostic): EquipmentUiDiagnosticView {
   const copy = localizeEquipmentDiagnostic(diagnostic, "contentImport")
+  const path = "path" in diagnostic ? formatEquipmentDiagnosticPath(diagnostic.path) : ""
 
   return {
     severity: diagnostic.severity,
     code: String(diagnostic.code),
-    path: "path" in diagnostic ? diagnostic.path : "",
+    path,
     message: formatLocalizedEquipmentDiagnosticMessage(copy),
     value: diagnostic.value,
   }
+}
+
+function formatEquipmentDiagnosticPath(path: string) {
+  const parts = path.split("/").filter(Boolean)
+  if (parts[0] !== "equipment") return path
+
+  const group = equipmentGroupLabel(parts[1])
+  const index = Number(parts[2])
+  if (!group || !Number.isInteger(index) || index < 0) return path
+
+  const field = equipmentFieldLabelFromPath(path)
+  return field ? `${group} / 第 ${index + 1} 件 / ${field}` : `${group} / 第 ${index + 1} 件`
+}
+
+function equipmentGroupLabel(group: string | undefined) {
+  if (group === "weapons") return "武器"
+  if (group === "armor") return "护甲"
+  return undefined
 }

@@ -258,12 +258,15 @@ export function createCardPackApplicationService(input: CreateCardPackApplicatio
 
   function buildConflictContext(snapshot: CardPackStorageSnapshot): CardPackConflictContext {
     const importedTemplateIds = new Set<string>()
-    const importedTemplateSources = new Map<string, { packId?: string }>()
+    const importedTemplateSources = new Map<string, { packId?: string; packLabel?: string }>()
 
     for (const entry of snapshot.packs.values()) {
       for (const templateId of entry.templateIds) {
         importedTemplateIds.add(templateId)
-        importedTemplateSources.set(templateId, { packId: entry.packId })
+        importedTemplateSources.set(templateId, {
+          packId: entry.packId,
+          packLabel: entry.source?.label,
+        })
       }
     }
 

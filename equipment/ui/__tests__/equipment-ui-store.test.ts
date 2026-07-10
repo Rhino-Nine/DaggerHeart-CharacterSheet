@@ -227,6 +227,31 @@ describe("equipment UI store", () => {
     })
   })
 
+  it("formats equipment import diagnostic paths for users", () => {
+    expect(
+      toDiagnosticView({
+        severity: "error",
+        code: "ID_CONFLICT",
+        path: "/equipment/weapons/0/id",
+        message: "Template id conflicts with imported equipment.",
+        value: { id: "weapon:shadow" },
+      }),
+    ).toMatchObject({
+      path: "武器 / 第 1 件 / 装备ID",
+    })
+
+    expect(
+      toDiagnosticView({
+        severity: "error",
+        code: "MISSING_FIELD",
+        path: "/equipment/armor/1/name",
+        message: "Missing required field.",
+      }),
+    ).toMatchObject({
+      path: "护甲 / 第 2 件 / 名称",
+    })
+  })
+
   it("initializes lazily and does not initialize twice", async () => {
     const { store, applicationService } = createHarness()
 

@@ -20,14 +20,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  importCustomCards,
-  removeCustomCardBatch,
-  toggleBatchDisabled,
-} from "@/card/index"
+import { removeCustomCardBatch, toggleBatchDisabled } from "@/card/index"
 import type { ExtendedStandardCard } from "@/card/card-types"
+import type { ImportData } from "@/card/card-types"
+import { createCardDhcbSource, createCardObjectSource } from "@/card/import/source"
+import { getDefaultCardPackApplicationService } from "@/card/packs/default-card-pack-services"
 import { toCardRuntimeSourceListItem } from "@/card/runtime/card-pack-view-model"
-import { importDhcbCardPackage } from "@/card/utils/dhcb-importer"
 import { useUnifiedCardStore } from "@/card/stores/unified-card-store"
 import { getEquipmentUiStore } from "@/equipment/ui/equipment-ui-store"
 import { toDiagnosticView, type EquipmentPackDetailView, type RuntimeEquipmentTemplateWithSource } from "@/equipment/ui/types"
@@ -56,6 +54,19 @@ function DetailField({ label, value }: { label: string; value: string | number |
 
 function formatWeaponType(value: "primary" | "secondary") {
   return value === "primary" ? "主武器" : "副手"
+}
+
+async function importCardJsonForManager(importData: ImportData, fileName: string) {
+  const service = await getDefaultCardPackApplicationService()
+  return service.importFromSource(createCardObjectSource(importData, fileName), { mode: "commit" })
+}
+
+async function importCardDhcbForManager(file: File) {
+  const service = await getDefaultCardPackApplicationService()
+  const bytes = await file.arrayBuffer()
+  return service.importFromSource(createCardDhcbSource(bytes, file.name), {
+    mode: "commit",
+  })
 }
 
 function WeaponTemplateList({ templates }: { templates: RuntimeEquipmentTemplateWithSource[] }) {
@@ -250,8 +261,8 @@ export default function CardManagerPage() {
     try {
       const result = await importContentPackFiles(files, {
         importEquipmentFile: (file) => store.getState().importPackFromFile(file),
-        importCardJson: importCustomCards,
-        importDhcb: importDhcbCardPackage,
+        importCardJson: importCardJsonForManager,
+        importDhcb: importCardDhcbForManager,
         toEquipmentDiagnosticView: toDiagnosticView,
       })
 

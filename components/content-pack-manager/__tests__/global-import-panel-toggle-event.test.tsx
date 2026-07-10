@@ -62,10 +62,10 @@ describe("GlobalImportPanel diagnostic toggle events", () => {
     )
 
     await act(async () => {
-      fireEvent.click(screen.getByText(/查看详细信息/))
+      fireEvent.click(screen.getByText(/查看问题明细/))
       await vi.runOnlyPendingTimersAsync()
     })
 
-    expect(screen.getByText("DUPLICATE_CARD_PACK")).toBeInTheDocument()
+    expect(screen.getByText("同名卡牌包已存在")).toBeInTheDocument()
   })
 })

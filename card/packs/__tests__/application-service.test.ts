@@ -44,7 +44,7 @@ function validCardSource(input: { templateId?: string } = {}): CardImportSource 
   }
 }
 
-function makeSnapshot(input: { packId?: string; templateIds?: string[] } = {}): CardPackStorageSnapshot {
+function makeSnapshot(input: { packId?: string; templateIds?: string[]; sourceLabel?: string } = {}): CardPackStorageSnapshot {
   const packId = input.packId ?? "batch_existing"
   const templateIds = input.templateIds ?? []
   return {
@@ -57,6 +57,15 @@ function makeSnapshot(input: { packId?: string; templateIds?: string[] } = {}): 
                 packId,
                 importedAt: "2026-06-16T09:00:00.000Z",
                 disabled: false,
+                ...(input.sourceLabel
+                  ? {
+                      source: {
+                        originKind: "file" as const,
+                        label: input.sourceLabel,
+                        fileName: `${input.sourceLabel}.dhcb`,
+                      },
+                    }
+                  : {}),
                 templateIds,
                 imageTemplateIds: [],
               },
@@ -316,6 +325,38 @@ describe("card pack application service", () => {
     expect(result.success).toBe(false)
     expect(result.stage).toBe("conflictCheck")
     expect(repository.commitCalls).toHaveLength(0)
+  })
+
+  it("includes the installed card pack name in custom template id conflict diagnostics", async () => {
+    const repository = createFakeRepository({
+      snapshot: makeSnapshot({
+        packId: "batch_1783654066792_ik1rft",
+        templateIds: ["warrior"],
+        sourceLabel: "血猎人旧版",
+      }),
+    })
+    const service = createCardPackApplicationService({
+      repository,
+      runtimeRefresh: createFakeRuntimeRefresh(),
+      builtinTemplateIds: new Set(),
+      createPackId: () => "batch_1",
+      now: () => FIXED_NOW,
+      random: () => 0.123456,
+    })
+
+    const result = await service.importFromSource(validCardSource({ templateId: "warrior" }), { mode: "commit" })
+
+    expect(result.success).toBe(false)
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "TEMPLATE_ID_CONFLICT",
+        value: expect.objectContaining({
+          conflictSource: "custom",
+          packId: "batch_1783654066792_ik1rft",
+          packLabel: "血猎人旧版",
+        }),
+      }),
+    )
   })
 
   it("rejects built-in template id conflicts before repository commit", async () => {

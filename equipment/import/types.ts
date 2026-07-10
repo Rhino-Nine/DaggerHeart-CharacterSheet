@@ -138,7 +138,7 @@ export interface NormalizedEquipmentModifierContributionTemplate {
 export interface EquipmentPackConflictContext {
   builtinTemplateIds: ReadonlySet<string>
   importedTemplateIds: ReadonlySet<string>
-  importedTemplateSources?: ReadonlyMap<string, { packId?: string }>
+  importedTemplateSources?: ReadonlyMap<string, { packId?: string; packLabel?: string }>
   customPackCount: number
   maxCustomPackCount: number
 }

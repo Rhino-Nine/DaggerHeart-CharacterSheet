@@ -1,4 +1,5 @@
 import type { ImportData, ImportResult } from "@/card/card-types"
+import type { CardPackApplicationDiagnostic, CardPackApplicationImportResult } from "@/card/packs/application-service"
 import type { DhcbImportResult } from "@/card/utils/dhcb-importer"
 import { toDiagnosticView, type EquipmentUiStoreDiagnostic } from "@/equipment/ui/types"
 import type { ContentPackImportDiagnosticView, ContentPackImportResultView } from "./global-import-panel"
@@ -15,10 +16,13 @@ interface EquipmentImportResultLike {
   diagnostics: EquipmentUiStoreDiagnostic[]
 }
 
+type CardImportResultLike = ImportResult | CardPackApplicationImportResult
+type DhcbImportResultLike = DhcbImportResult | CardPackApplicationImportResult
+
 export interface ImportContentPackDependencies {
   importEquipmentFile(file: File): Promise<EquipmentImportResultLike>
-  importCardJson(importData: ImportData, fileName: string): Promise<ImportResult>
-  importDhcb(file: File): Promise<DhcbImportResult>
+  importCardJson(importData: ImportData, fileName: string): Promise<CardImportResultLike>
+  importDhcb(file: File): Promise<DhcbImportResultLike>
   toEquipmentDiagnosticView?: typeof toDiagnosticView
 }
 
@@ -66,6 +70,10 @@ async function importOneContentPackFile(
 
     if (lowerName.endsWith(".dhcb") || lowerName.endsWith(".zip")) {
       const result = await dependencies.importDhcb(file)
+      if (isStructuredCardImportResult(result)) {
+        return cardApplicationResultToView(file.name, undefined, result)
+      }
+
       return {
         fileName: file.name,
         kind: "card",
@@ -97,12 +105,17 @@ async function importOneContentPackFile(
       }
 
       const result = await dependencies.importCardJson(parsed, file.name)
+      if (isStructuredCardImportResult(result)) {
+        return cardApplicationResultToView(file.name, parsed, result)
+      }
+
+      const diagnostics = cardMessagesToDiagnostics(result.errors)
       return {
         fileName: file.name,
         kind: "card",
         success: result.success,
-        summary: result.success ? `导入 ${result.imported} 张卡牌` : "卡牌包导入失败",
-        diagnostics: cardMessagesToDiagnostics(result.errors),
+        summary: result.success ? `导入 ${result.imported} 张卡牌` : cardFailureSummary(diagnostics),
+        diagnostics,
       }
     }
 
@@ -118,7 +131,8 @@ async function importOneContentPackFile(
           severity: "error",
           code: "CONTENT_PACK_IMPORT_FAILED",
           path: "",
-          message: error instanceof Error ? error.message : "文件导入失败",
+          message:
+            error instanceof SyntaxError ? "文件不是有效的 JSON。请检查 JSON 语法" : "文件导入失败，请检查文件内容",
         },
       ],
     }
@@ -157,6 +171,211 @@ function cardMessagesToDiagnostics(messages: string[] | undefined): ContentPackI
     path: "",
     message,
   }))
+}
+
+function isStructuredCardImportResult(
+  value: CardImportResultLike | DhcbImportResultLike,
+): value is CardPackApplicationImportResult {
+  return isRecord(value) && Array.isArray(value.diagnostics) && isRecord(value.summary) && "cardCount" in value.summary
+}
+
+function cardApplicationResultToView(
+  fileName: string,
+  input: ImportData | undefined,
+  result: CardPackApplicationImportResult,
+): ContentPackImportResultView {
+  const diagnostics = cardDiagnosticsToViews(result.diagnostics, input)
+
+  return {
+    fileName,
+    kind: "card",
+    success: result.success,
+    summary: result.success ? `导入 ${result.summary.cardCount} 张卡牌` : cardFailureSummary(diagnostics),
+    diagnostics,
+  }
+}
+
+function cardFailureSummary(diagnostics: ContentPackImportDiagnosticView[]) {
+  const errorCount = diagnostics.filter((diagnostic) => diagnostic.severity === "error").length
+  const warningCount = diagnostics.filter((diagnostic) => diagnostic.severity === "warning").length
+
+  if (warningCount > 0) {
+    return `卡牌包导入失败：发现 ${errorCount} 个阻碍导入的问题，${warningCount} 个提醒`
+  }
+
+  return `卡牌包导入失败：发现 ${errorCount} 个阻碍导入的问题`
+}
+
+function cardDiagnosticsToViews(
+  diagnostics: CardPackApplicationDiagnostic[],
+  input: ImportData | undefined,
+): ContentPackImportDiagnosticView[] {
+  return diagnostics
+    .map((diagnostic, index) => {
+      const pathInfo = parseCardDiagnosticPath(diagnostic.path)
+      return {
+        view: {
+          severity: diagnostic.severity,
+          code: diagnostic.code,
+          path: formatCardDiagnosticPath(pathInfo, diagnostic.path),
+          message: formatCardDiagnosticMessage(diagnostic, input, pathInfo),
+          value: diagnostic.value,
+        },
+        index,
+        cardOrder: pathInfo?.index ?? Number.MAX_SAFE_INTEGER,
+      }
+    })
+    .sort((left, right) => {
+      const severityOrder = severityRank(left.view.severity) - severityRank(right.view.severity)
+      if (severityOrder !== 0) return severityOrder
+      if (left.cardOrder !== right.cardOrder) return left.cardOrder - right.cardOrder
+      return left.index - right.index
+    })
+    .map((entry) => entry.view)
+}
+
+function severityRank(severity: "error" | "warning") {
+  return severity === "error" ? 0 : 1
+}
+
+const cardGroupLabels: Record<string, string> = {
+  classes: "职业",
+  profession: "职业",
+  ancestries: "种族",
+  ancestry: "种族",
+  communities: "社群",
+  community: "社群",
+  subclasses: "子职业",
+  subclass: "子职业",
+  domains: "领域",
+  domain: "领域",
+  variants: "杂项",
+  variant: "杂项",
+}
+
+const cardGroupInputKeys: Record<string, string[]> = {
+  classes: ["classes", "profession"],
+  ancestries: ["ancestries", "ancestry"],
+  communities: ["communities", "community"],
+  subclasses: ["subclasses", "subclass"],
+  domains: ["domains", "domain"],
+  variants: ["variants", "variant"],
+}
+
+const cardFieldLabels: Record<string, string> = {
+  id: "id",
+  name: "名称",
+  description: "描述",
+  summary: "摘要",
+  level: "等级",
+  type: "类型",
+  class: "职业",
+  domain: "领域",
+  domain1: "领域 1",
+  domain2: "领域 2",
+  effect: "效果",
+}
+
+interface CardDiagnosticPathInfo {
+  group: string
+  index: number
+  field?: string
+}
+
+function parseCardDiagnosticPath(path: string): CardDiagnosticPathInfo | undefined {
+  const segments = path.split("/").filter(Boolean)
+  if (segments.length < 2) return undefined
+
+  const group = segments[0]
+  const index = Number(segments[1])
+  if (!Number.isInteger(index) || index < 0 || !(group in cardGroupLabels)) return undefined
+
+  return { group, index, field: segments[2] }
+}
+
+function formatCardDiagnosticPath(pathInfo: CardDiagnosticPathInfo | undefined, fallback: string) {
+  if (!pathInfo) return fallback
+
+  const group = cardGroupLabels[pathInfo.group]
+  const field = pathInfo.field ? ` / ${cardFieldLabels[pathInfo.field] ?? pathInfo.field}` : ""
+  return `${group} / 第 ${pathInfo.index + 1} 张${field}`
+}
+
+function formatCardDiagnosticMessage(
+  diagnostic: CardPackApplicationDiagnostic,
+  input: ImportData | undefined,
+  pathInfo: CardDiagnosticPathInfo | undefined,
+) {
+  const reason = localizedCardDiagnosticReason(diagnostic)
+  const cardName = pathInfo ? findCardName(input, pathInfo) : undefined
+  return cardName ? `${cardName}：${reason}` : reason
+}
+
+function localizedCardDiagnosticReason(diagnostic: CardPackApplicationDiagnostic) {
+  switch (diagnostic.code) {
+    case "LEGACY_FORMAT_ASSUMED":
+      return "未声明文件格式，已按旧版卡牌包格式读取"
+    case "TEMPLATE_ID_CONFLICT":
+      return "卡牌 ID 已存在"
+    case "PACK_LIMIT_EXCEEDED":
+      return "本地卡牌包数量已达上限"
+    case "MISSING_FIELD":
+      return "缺少必填字段"
+    case "INVALID_TYPE":
+      return "字段类型不正确"
+    case "INVALID_VALUE":
+      return "字段值不正确"
+    case "DUPLICATE_ID":
+      return "卡牌 ID 重复"
+    case "UNKNOWN_REFERENCE":
+      return "引用了不存在的定义"
+    case "INVALID_JSON":
+      return "文件不是有效的 JSON。请检查 JSON 语法"
+    case "INVALID_DHCB":
+      return "文件不是有效的 DHCB / ZIP 卡牌包"
+    case "MISSING_CARDS_JSON":
+      return "DHCB / ZIP 中缺少 cards.json"
+    case "UNSUPPORTED_FORMAT":
+    case "INVALID_FORMAT":
+      return "不支持这个卡牌包格式"
+    case "ORPHAN_IMAGE":
+      return "图片没有对应的卡牌"
+    case "UNKNOWN_FIELD":
+      return "包含不支持的字段"
+    case "SOURCE_READ_FAILED":
+      return "无法读取文件内容"
+    case "UNSUPPORTED_AUTOMATION_FORMAT":
+      return "自动化定义格式不受支持"
+    case "INVALID_AUTOMATION_DEFINITION":
+    case "INVALID_AUTOMATION_IR":
+      return "自动化定义不正确"
+    case "AUTOMATION_LIMIT_EXCEEDED":
+      return "自动化定义数量超过限制"
+    default:
+      return hasChineseText(diagnostic.message) ? diagnostic.message : "文件内容不符合卡牌包要求"
+  }
+}
+
+function findCardName(input: ImportData | undefined, pathInfo: CardDiagnosticPathInfo) {
+  if (!input || !isRecord(input)) return undefined
+
+  const keys = cardGroupInputKeys[pathInfo.group] ?? [pathInfo.group]
+  for (const key of keys) {
+    const cards = input[key]
+    if (!Array.isArray(cards)) continue
+
+    const card = cards[pathInfo.index]
+    if (!isRecord(card)) continue
+
+    const name = card.name
+    if (typeof name === "string" && name.trim().length > 0) return name.trim()
+  }
+
+  return undefined
+}
+
+function hasChineseText(value: string) {
+  return /[\u4e00-\u9fff]/.test(value)
 }
 
 function equipmentFailureSummary(diagnostics: EquipmentUiStoreDiagnostic[]) {

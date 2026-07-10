@@ -486,7 +486,10 @@ describe("equipment pack application service", () => {
 
     expect(context.builtinTemplateIds).toEqual(new Set(["weapon:builtin"]))
     expect(context.importedTemplateIds).toEqual(new Set(["weapon:existing", "armor:existing"]))
-    expect(context.importedTemplateSources?.get("weapon:existing")).toEqual({ packId: "pack_a" })
+    expect(context.importedTemplateSources?.get("weapon:existing")).toEqual({
+      packId: "pack_a",
+      packLabel: "Shadow Equipment",
+    })
     expect(context.customPackCount).toBe(1)
     expect(context.maxCustomPackCount).toBe(3)
   })
@@ -521,7 +524,17 @@ describe("equipment pack application service", () => {
     const result = await service.importFromSource(validSource({ weaponId: "weapon:existing" }), { mode: "commit" })
 
     expect(result).toMatchObject({ success: false, stage: "conflictCheck" })
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: "ID_CONFLICT", path: "/equipment/weapons/0/id" }))
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "ID_CONFLICT",
+        path: "/equipment/weapons/0/id",
+        value: expect.objectContaining({
+          conflictSource: "custom",
+          packId: "pack_existing",
+          packLabel: "Shadow Equipment",
+        }),
+      }),
+    )
     expect(repository.commitImport).not.toHaveBeenCalled()
   })
 
