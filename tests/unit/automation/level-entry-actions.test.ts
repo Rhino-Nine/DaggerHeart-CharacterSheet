@@ -11,10 +11,14 @@ import { mergeUpgradeState, sanitizeUpgradeStates } from "@/automation/core/upgr
 describe("level entry automation", () => {
   it.each([
     ["", 1],
+    [" ", 1],
     ["abc", 1],
     ["0", 1],
     ["11", 1],
+    ["2.5", 1],
+    [2.5, 1],
     ["1", 1],
+    [2, 2],
     ["5", 5],
     ["10", 10],
   ])("normalizes %s to %s", (value, expected) => {

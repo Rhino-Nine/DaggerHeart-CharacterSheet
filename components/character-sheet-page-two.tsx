@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { upgradeOptionsData } from "@/data/list/upgrade"
+import { getUpgradeOptions, isUpgradeBandKey } from "@/data/list/upgrade"
 import { useSheetStore, useSafeSheetData } from "@/lib/sheet-store";
 import type { AttributeValue, SheetData } from "@/lib/sheet-data"
 import type { StandardCard } from "@/card/card-types"
@@ -108,16 +108,16 @@ export default function CharacterSheetPageTwo() {
   const handleUpgradeCheck = (checkKeyOrTier: string, index: number) => {
     // 提取 tier（从 "tier1-0-2" 提取出 "tier1"）
     const tierMatch = checkKeyOrTier.match(/^(tier\d+)/)
-    const tier = tierMatch ? tierMatch[1] : checkKeyOrTier
+    const upgradeBandKeyCandidate = tierMatch ? tierMatch[1] : checkKeyOrTier
 
     // 获取当前勾选状态（使用完整的 checkKeyOrTier）
     const currentlyChecked = safeFormData.upgradeStates?.[checkKeyOrTier]?.checked ?? false
     const newCheckedState = !currentlyChecked
 
     // 获取选项信息
-    const tierNum = parseInt(tier.replace('tier', ''))
-    const options = getUpgradeOptions(tierNum)
-    const option = options[index]
+    const option = isUpgradeBandKey(upgradeBandKeyCandidate)
+      ? getUpgradeOptions(upgradeBandKeyCandidate)[index]
+      : undefined
 
     if (option) {
       const result = computeUpgradeAutomation({
@@ -166,28 +166,6 @@ export default function CharacterSheetPageTwo() {
     return !!safeFormData.upgradeStates?.[tier]?.checked
   }
 
-  // 更新 getUpgradeOptions 函数以移除职业相关逻辑，并确保其与新的升级选项系统一致
-  const getUpgradeOptions = (tier: number) => {
-    // 获取基础升级选项
-    const baseUpgrades = [...upgradeOptionsData.baseUpgrades]
-
-    // 获取当前 tier 的等级上限文本
-    const tierKey = `tier${tier}` as keyof typeof upgradeOptionsData.tierLevelCaps
-    const levelCap = upgradeOptionsData.tierLevelCaps[tierKey] || ""
-
-    // 替换占位符 {LEVEL_CAP} 为实际的等级上限
-    const processedBaseUpgrades = baseUpgrades.map(option => ({
-      ...option,
-      label: option.label.replace('{LEVEL_CAP}', levelCap)
-    }))
-
-    // 添加特定等级升级选项
-    const tierSpecificKey = `tier${tier}` as keyof typeof upgradeOptionsData.tierSpecificUpgrades
-    const tierSpecificUpgrades = upgradeOptionsData.tierSpecificUpgrades[tierSpecificKey] || []
-
-    return [...processedBaseUpgrades, ...tierSpecificUpgrades]
-  }
-
   // Handle opening the domain card modal from upgrade section
   const handleOpenUpgradeDomainModal = (cardIndex: number) => {
     setUpgradeDomainCardIndex(cardIndex)
@@ -226,14 +204,12 @@ export default function CharacterSheetPageTwo() {
         <div className="mt-3 grid grid-cols-3 gap-3 text-m">
             {/* Tier 1: Levels 2-4 */}
             <UpgradeSection
-              tier={1}
-            title="T2 等级 2-4"
+              upgradeBandKey="tier1"
               description="当你到达 2 级时：获得一项额外+2经历，熟练度标记+1。"
               formData={safeFormData}
               isUpgradeChecked={isUpgradeChecked}
               handleUpgradeCheck={handleUpgradeCheck}
               toggleUpgradeCheckbox={toggleUpgradeCheckbox}
-              getUpgradeOptions={getUpgradeOptions}
               onCardChange={handleCardChange}
               onOpenCardModal={handleOpenUpgradeDomainModal}
               onOpenSubclassModal={handleOpenUpgradeSubclassModal}
@@ -241,14 +217,12 @@ export default function CharacterSheetPageTwo() {
 
             {/* Tier 2: Levels 5-7 */}
             <UpgradeSection
-              tier={2}
-            title="T3 等级 5-7"
+              upgradeBandKey="tier2"
               description="当你到达 5 级时：获得一项额外+2经历，清除所有属性升级标记，熟练度标记+1。"
               formData={safeFormData}
               isUpgradeChecked={isUpgradeChecked}
               handleUpgradeCheck={handleUpgradeCheck}
               toggleUpgradeCheckbox={toggleUpgradeCheckbox}
-              getUpgradeOptions={getUpgradeOptions}
               onCardChange={handleCardChange}
               onOpenCardModal={handleOpenUpgradeDomainModal}
               onOpenSubclassModal={handleOpenUpgradeSubclassModal}
@@ -256,14 +230,12 @@ export default function CharacterSheetPageTwo() {
 
             {/* Tier 3: Levels 8-10 */}
             <UpgradeSection
-              tier={3}
-            title="T4 等级 8-10"
+              upgradeBandKey="tier3"
               description="当你到达 8 级时：获得一项额外+2经历，清除所有属性升级标记，熟练度标记+1。"
               formData={safeFormData}
               isUpgradeChecked={isUpgradeChecked}
               handleUpgradeCheck={handleUpgradeCheck}
               toggleUpgradeCheckbox={toggleUpgradeCheckbox}
-              getUpgradeOptions={getUpgradeOptions}
               onCardChange={handleCardChange}
               onOpenCardModal={handleOpenUpgradeDomainModal}
               onOpenSubclassModal={handleOpenUpgradeSubclassModal}

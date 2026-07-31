@@ -57,6 +57,17 @@ describe("升级取消流程（page-two 集成）", () => {
     useSheetStore.setState({ sheetData: { ...defaultSheetData } })
   })
 
+  it("从统一位阶范围渲染原有升级标题和上限文案", () => {
+    render(<CharacterSheetPageTwo />)
+
+    expect(screen.getByText("T2 等级 2-4")).toBeInTheDocument()
+    expect(screen.getByText("T3 等级 5-7")).toBeInTheDocument()
+    expect(screen.getByText("T4 等级 8-10")).toBeInTheDocument()
+    expect(screen.getAllByText(/\(上限4级\)/)).not.toHaveLength(0)
+    expect(screen.getAllByText(/\(上限7级\)/)).not.toHaveLength(0)
+    expect(screen.getAllByText(/\(上限10级\)/)).not.toHaveLength(0)
+  })
+
   it("勾选闪避升级会直接记录升级选择，不打开确认气泡", async () => {
     const user = userEvent.setup()
     seedStore({

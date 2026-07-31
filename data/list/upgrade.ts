@@ -1,10 +1,50 @@
 import type { UpgradeAutomationMetadata } from "@/automation/core/types"
+import {
+  getCharacterTierLevelRange,
+  parseCharacterLevel,
+  type CharacterTier,
+} from "@/character/progression/tiers"
 
-interface UpgradeOptionData {
+export interface UpgradeOptionData {
   label: string
   doubleBox: boolean
   boxCount: number
   automation: UpgradeAutomationMetadata
+}
+
+export type UpgradeBandKey = "tier1" | "tier2" | "tier3"
+
+export const UPGRADE_BAND_CHARACTER_TIERS = {
+  tier1: "2",
+  tier2: "3",
+  tier3: "4",
+} as const satisfies Record<UpgradeBandKey, CharacterTier>
+
+export function isUpgradeBandKey(value: string): value is UpgradeBandKey {
+  return value === "tier1" || value === "tier2" || value === "tier3"
+}
+
+export function getUpgradeBandLevelRange(upgradeBandKey: UpgradeBandKey) {
+  return getCharacterTierLevelRange(UPGRADE_BAND_CHARACTER_TIERS[upgradeBandKey])
+}
+
+export function getUpgradeBandTitle(upgradeBandKey: UpgradeBandKey): string {
+  const characterTier = UPGRADE_BAND_CHARACTER_TIERS[upgradeBandKey]
+  const { minLevel, maxLevel } = getUpgradeBandLevelRange(upgradeBandKey)
+  return `T${characterTier} 等级 ${minLevel}-${maxLevel}`
+}
+
+export function getUpgradeDomainCardLevelFilter(
+  upgradeBandKey: UpgradeBandKey,
+  currentLevelValue: unknown,
+): string[] {
+  const { maxLevel } = getUpgradeBandLevelRange(upgradeBandKey)
+  const currentLevel = parseCharacterLevel(currentLevelValue)
+  const targetLevel = currentLevel === undefined
+    ? maxLevel
+    : Math.min(currentLevel, maxLevel)
+
+  return Array.from({ length: targetLevel }, (_, index) => String(index + 1))
 }
 
 // 升级选项数据
@@ -18,13 +58,6 @@ export const upgradeOptionsData = {
     { label: "选择一张不高于你当前等级{LEVEL_CAP}的领域卡加入卡组。", doubleBox: false, boxCount: 1, automation: { kind: "none" } },
     { label: "获得闪避值+1。", doubleBox: false, boxCount: 1, automation: { kind: "fixedTarget", target: "evasion" } },
   ],
-
-  // Tier特定的等级上限配置
-  tierLevelCaps: {
-    tier1: "(上限4级)",
-    tier2: "(上限7级)",
-    tier3: "(上限10级)",
-  },
 
   // 特定等级升级选项
   tierSpecificUpgrades: {
@@ -43,6 +76,16 @@ export const upgradeOptionsData = {
   },
 } satisfies {
   baseUpgrades: UpgradeOptionData[]
-  tierLevelCaps: Record<"tier1" | "tier2" | "tier3", string>
-  tierSpecificUpgrades: Record<"tier1" | "tier2" | "tier3", UpgradeOptionData[]>
+  tierSpecificUpgrades: Record<UpgradeBandKey, UpgradeOptionData[]>
+}
+
+export function getUpgradeOptions(upgradeBandKey: UpgradeBandKey): UpgradeOptionData[] {
+  const { maxLevel } = getUpgradeBandLevelRange(upgradeBandKey)
+  const levelCap = `(上限${maxLevel}级)`
+  const baseUpgrades = upgradeOptionsData.baseUpgrades.map(option => ({
+    ...option,
+    label: option.label.replace("{LEVEL_CAP}", levelCap),
+  }))
+
+  return [...baseUpgrades, ...upgradeOptionsData.tierSpecificUpgrades[upgradeBandKey]]
 }

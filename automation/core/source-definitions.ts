@@ -1,4 +1,4 @@
-import { tryParseNumber } from "@/lib/number-utils"
+import { parseCharacterLevel } from "@/character/progression/tiers"
 import type { SheetData } from "@/lib/sheet-data"
 import { createModifierEntry } from "./entry-utils"
 import type { ModifierEntry, ModifierTargetId, UpgradeStateParams } from "./types"
@@ -177,8 +177,8 @@ export function collectSystemModifierEntries(sheetData: SheetData): ModifierEntr
     }))
   }
 
-  const level = tryParseNumber(sheetData.level)
-  if (level !== undefined && level >= 1 && level <= 10) {
+  const level = parseCharacterLevel(sheetData.level)
+  if (level !== undefined) {
     entries.push(
       createModifierEntry({
         id: "level:current:minorThreshold",

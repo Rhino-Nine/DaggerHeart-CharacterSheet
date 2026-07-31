@@ -161,7 +161,103 @@ function attributeChoiceIr(): CardAutomationIR {
   };
 }
 
+function tierReadingIr(): CardAutomationIR {
+  return {
+    format: "daggerheart.card-automation.ir.v1",
+    revision: "stable32:tier-reading",
+    abilities: [
+      {
+        id: "tier-reading",
+        label: "Tier Reading",
+        lifetime: { kind: "whileInLoadout" },
+        effects: [
+          {
+            id: "tier-value",
+            kind: "emitModifier",
+            target: "evasion",
+            value: { kind: "tier" },
+          },
+          {
+            id: "tier-branch",
+            kind: "emitModifier",
+            target: "armorMax",
+            value: {
+              kind: "valueByTier",
+              values: { "1": 10, "2": 20, "3": 30, "4": 40 },
+            },
+          },
+        ],
+      },
+    ],
+  }
+}
+
 describe("card automation resolver", () => {
+  it("evaluates public tier expressions from the canonical Character Tier", () => {
+    const sheet = makeSheet({
+      level: "8",
+      cards: [
+        {
+          standarized: true,
+          id: "tier-card",
+          instanceId: "cardinst_tier",
+          name: "Tier Card",
+          type: "domain",
+          class: "Test",
+          cardSelectDisplay: {},
+          automation: tierReadingIr(),
+        },
+      ],
+    })
+
+    const contributions = projectCardAutomationContributions(
+      resolveCardAutomation(buildCardAutomationSnapshot(sheet)),
+    )
+
+    expect(contributions).toEqual([
+      expect.objectContaining({
+        id: "card:cardinst_tier:tier-reading:tier-value",
+        value: 4,
+      }),
+      expect.objectContaining({
+        id: "card:cardinst_tier:tier-reading:tier-branch",
+        value: 40,
+      }),
+    ])
+  })
+
+  it("diagnoses public tier expressions when Character Level is invalid", () => {
+    const sheet = makeSheet({
+      level: "11",
+      cards: [
+        {
+          standarized: true,
+          id: "tier-card",
+          instanceId: "cardinst_invalid_tier",
+          name: "Tier Card",
+          type: "domain",
+          class: "Test",
+          cardSelectDisplay: {},
+          automation: tierReadingIr(),
+        },
+      ],
+    })
+
+    const resolved = resolveCardAutomation(buildCardAutomationSnapshot(sheet))
+
+    expect(projectCardAutomationContributions(resolved)).toEqual([])
+    expect(resolved.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "VALUE_EVALUATION_FAILED",
+        effectId: "tier-value",
+      }),
+      expect.objectContaining({
+        code: "VALUE_EVALUATION_FAILED",
+        effectId: "tier-branch",
+      }),
+    ]))
+  })
+
   it("emits fixed modifier from loadout card with stable card contribution id", () => {
     const sheet = makeSheet({
       cards: [

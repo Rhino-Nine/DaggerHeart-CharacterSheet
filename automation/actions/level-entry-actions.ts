@@ -1,5 +1,6 @@
 import type { AttributeValue, SheetData } from "@/lib/sheet-data"
 import type { AttributeKey } from "@/automation/core/types"
+import { parseCharacterLevel } from "@/character/progression/tiers"
 
 const ATTRIBUTE_KEYS = [
   "agility",
@@ -58,12 +59,7 @@ function isAttributeValue(value: unknown): value is AttributeValue {
 }
 
 export function normalizeLevelForEntryAutomation(value: unknown): number {
-  if (typeof value !== "string" && typeof value !== "number") return 1
-
-  const level = typeof value === "string" ? Number(value.trim()) : value
-  if (!Number.isInteger(level) || level < 1 || level > 10) return 1
-
-  return level
+  return parseCharacterLevel(value) ?? 1
 }
 
 export function enteredLevelsBetween(oldLevel: unknown, newLevel: unknown): number[] {

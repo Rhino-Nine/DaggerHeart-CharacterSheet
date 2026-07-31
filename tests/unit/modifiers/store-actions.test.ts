@@ -107,6 +107,55 @@ const setupChoiceAutomation: CardAutomationIR = {
   ],
 }
 
+const bareBonesAutomation: CardAutomationIR = {
+  format: "daggerheart.card-automation.ir.v1",
+  revision: "stable32:bare-bones-store-test",
+  abilities: [
+    {
+      id: "bare-bones",
+      label: "Bare Bones",
+      lifetime: { kind: "whileInLoadout" },
+      when: { kind: "equipmentSlotEmpty", slot: "armor" },
+      effects: [
+        {
+          id: "bare-bones-armor",
+          kind: "emitBase",
+          target: "armorMax",
+          value: {
+            kind: "add",
+            values: [3, { kind: "attribute", attribute: "strength" }],
+          },
+        },
+        {
+          id: "bare-bones-minor",
+          kind: "emitBase",
+          target: "minorThreshold",
+          value: {
+            kind: "valueByTier",
+            values: { "1": 9, "2": 11, "3": 13, "4": 15 },
+          },
+        },
+        {
+          id: "bare-bones-major",
+          kind: "emitBase",
+          target: "majorThreshold",
+          value: {
+            kind: "valueByTier",
+            values: { "1": 19, "2": 24, "3": 31, "4": 38 },
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const BARE_BONES_INSTANCE_ID = "cardinst_bare_bones_store"
+const BARE_BONES_BASE_IDS = {
+  armorMax: `card:${BARE_BONES_INSTANCE_ID}:bare-bones:bare-bones-armor`,
+  minorThreshold: `card:${BARE_BONES_INSTANCE_ID}:bare-bones:bare-bones-minor`,
+  majorThreshold: `card:${BARE_BONES_INSTANCE_ID}:bare-bones:bare-bones-major`,
+} as const
+
 function ancestryCard(overrides: Partial<StandardCard> = {}): StandardCard {
   return {
     ...createEmptyCard("ancestry"),
@@ -139,6 +188,19 @@ function setupChoiceCard(overrides: Partial<StandardCard> = {}): StandardCard {
     type: "domain",
     class: "Blade",
     automation: setupChoiceAutomation,
+    ...overrides,
+  }
+}
+
+function bareBonesCard(overrides: Partial<StandardCard> = {}): StandardCard {
+  return {
+    ...createEmptyCard("domain"),
+    id: "domain:bare-bones",
+    instanceId: BARE_BONES_INSTANCE_ID,
+    name: "Bare Bones",
+    type: "domain",
+    class: "Valor",
+    automation: bareBonesAutomation,
     ...overrides,
   }
 }
@@ -618,6 +680,175 @@ describe("modifier store actions", () => {
     store().updateLevel("2")
 
     expect(sheet().minorThreshold).toBe("9")
+  })
+
+  it("recalculates enabled Bare Bones bases and finals across Character Tier boundaries", () => {
+    resetSheetStore({
+      level: "1",
+      strength: { checked: false, value: "2", spellcasting: false },
+      armorMax: 0,
+      minorThreshold: "0",
+      majorThreshold: "0",
+      cards: [
+        ...defaultSheetData.cards.slice(0, 5),
+        bareBonesCard(),
+        ...defaultSheetData.cards.slice(6),
+      ],
+      userModifierContributions: [{
+        id: "user:strength-base",
+        definition: { target: "strength.value", kind: "base" },
+        editable: { label: "Strength Base", value: 2 },
+      }],
+      modifierState: {
+        targetStates: {
+          "strength.value": { activeBaseId: "user:strength-base", autoCalculation: true },
+          armorMax: { activeBaseId: BARE_BONES_BASE_IDS.armorMax, autoCalculation: true },
+          minorThreshold: { activeBaseId: BARE_BONES_BASE_IDS.minorThreshold, autoCalculation: true },
+          majorThreshold: { activeBaseId: BARE_BONES_BASE_IDS.majorThreshold, autoCalculation: true },
+        },
+        entryStates: {},
+      },
+    })
+
+    const assertLevel = (
+      level: string,
+      expected: { armor: number; minorBase: number; majorBase: number; minorFinal: string; majorFinal: string },
+    ) => {
+      store().updateLevel(level)
+
+      const minorSummary = getReferenceSummary(sheet(), "minorThreshold")
+      const majorSummary = getReferenceSummary(sheet(), "majorThreshold")
+      expect(minorSummary.activeBase).toMatchObject({
+        id: BARE_BONES_BASE_IDS.minorThreshold,
+        presentation: { value: expected.minorBase },
+      })
+      expect(majorSummary.activeBase).toMatchObject({
+        id: BARE_BONES_BASE_IDS.majorThreshold,
+        presentation: { value: expected.majorBase },
+      })
+      expect(sheet().modifierState?.targetStates.minorThreshold?.activeBaseId).toBe(
+        BARE_BONES_BASE_IDS.minorThreshold,
+      )
+      expect(sheet().modifierState?.targetStates.majorThreshold?.activeBaseId).toBe(
+        BARE_BONES_BASE_IDS.majorThreshold,
+      )
+      expect(sheet().armorMax).toBe(expected.armor)
+      expect(sheet().minorThreshold).toBe(expected.minorFinal)
+      expect(sheet().majorThreshold).toBe(expected.majorFinal)
+    }
+
+    assertLevel("1", { armor: 5, minorBase: 9, majorBase: 19, minorFinal: "10", majorFinal: "20" })
+    assertLevel("2", { armor: 5, minorBase: 11, majorBase: 24, minorFinal: "13", majorFinal: "26" })
+    assertLevel("5", { armor: 5, minorBase: 13, majorBase: 31, minorFinal: "18", majorFinal: "36" })
+    assertLevel("8", { armor: 5, minorBase: 15, majorBase: 38, minorFinal: "23", majorFinal: "46" })
+  })
+
+  it("updates Bare Bones references while disabled threshold finals remain locked", () => {
+    resetSheetStore({
+      level: "1",
+      strength: { checked: false, value: "2", spellcasting: false },
+      minorThreshold: "10",
+      majorThreshold: "20",
+      cards: [
+        ...defaultSheetData.cards.slice(0, 5),
+        bareBonesCard(),
+        ...defaultSheetData.cards.slice(6),
+      ],
+      userModifierContributions: [{
+        id: "user:strength-base",
+        definition: { target: "strength.value", kind: "base" },
+        editable: { label: "Strength Base", value: 2 },
+      }],
+      modifierState: {
+        targetStates: {
+          "strength.value": { activeBaseId: "user:strength-base", autoCalculation: true },
+          minorThreshold: {
+            activeBaseId: BARE_BONES_BASE_IDS.minorThreshold,
+            autoCalculation: false,
+          },
+          majorThreshold: {
+            activeBaseId: BARE_BONES_BASE_IDS.majorThreshold,
+            autoCalculation: false,
+          },
+        },
+        entryStates: {},
+      },
+    })
+
+    store().updateLevel("2")
+
+    const minorSummary = getReferenceSummary(sheet(), "minorThreshold")
+    const majorSummary = getReferenceSummary(sheet(), "majorThreshold")
+    expect(minorSummary.activeBase).toMatchObject({
+      id: BARE_BONES_BASE_IDS.minorThreshold,
+      presentation: { value: 11 },
+    })
+    expect(majorSummary.activeBase).toMatchObject({
+      id: BARE_BONES_BASE_IDS.majorThreshold,
+      presentation: { value: 24 },
+    })
+    expect(minorSummary.referenceTotal).toBe(13)
+    expect(majorSummary.referenceTotal).toBe(26)
+    expect(minorSummary.unattributedDelta).toBe(-3)
+    expect(majorSummary.unattributedDelta).toBe(-6)
+    expect(sheet().minorThreshold).toBe("10")
+    expect(sheet().majorThreshold).toBe("20")
+    expect(sheet().modifierState?.targetStates.minorThreshold?.autoCalculation).toBe(false)
+    expect(sheet().modifierState?.targetStates.majorThreshold?.autoCalculation).toBe(false)
+    expect(sheet().otherAdjustments ?? []).toEqual([])
+    expect(sheet().userModifierContributions ?? []).toEqual([
+      {
+        id: "user:strength-base",
+        definition: { target: "strength.value", kind: "base" },
+        editable: { label: "Strength Base", value: 2 },
+      },
+    ])
+  })
+
+  it("preserves another valid active threshold base when Bare Bones changes tier", () => {
+    resetSheetStore({
+      level: "1",
+      strength: { checked: false, value: "2", spellcasting: false },
+      minorThreshold: "51",
+      majorThreshold: "61",
+      cards: [
+        ...defaultSheetData.cards.slice(0, 5),
+        bareBonesCard(),
+        ...defaultSheetData.cards.slice(6),
+      ],
+      userModifierContributions: [
+        {
+          id: "user:strength-base",
+          definition: { target: "strength.value", kind: "base" },
+          editable: { label: "Strength Base", value: 2 },
+        },
+        {
+          id: "user:minor-base",
+          definition: { target: "minorThreshold", kind: "base" },
+          editable: { label: "Minor Base", value: 50 },
+        },
+        {
+          id: "user:major-base",
+          definition: { target: "majorThreshold", kind: "base" },
+          editable: { label: "Major Base", value: 60 },
+        },
+      ],
+      modifierState: {
+        targetStates: {
+          "strength.value": { activeBaseId: "user:strength-base", autoCalculation: true },
+          minorThreshold: { activeBaseId: "user:minor-base", autoCalculation: true },
+          majorThreshold: { activeBaseId: "user:major-base", autoCalculation: true },
+        },
+        entryStates: {},
+      },
+    })
+
+    store().updateLevel("2")
+
+    expect(getReferenceSummary(sheet(), "minorThreshold").activeBase?.id).toBe("user:minor-base")
+    expect(getReferenceSummary(sheet(), "majorThreshold").activeBase?.id).toBe("user:major-base")
+    expect(sheet().minorThreshold).toBe("52")
+    expect(sheet().majorThreshold).toBe("62")
   })
 
   it("applies auto calculation after armor base max changes", () => {

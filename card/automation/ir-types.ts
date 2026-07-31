@@ -1,11 +1,12 @@
 import type { ModifierTargetId } from "@/automation/core/types"
+import type { CharacterTier } from "@/character/progression/tiers"
 import type { CardAutomationRuntimeDiagnostic } from "./runtime-diagnostics"
 
 export const CARD_AUTOMATION_IR_FORMAT = "daggerheart.card-automation.ir.v1" as const
 export const CARD_AUTOMATION_DEFINITION_FORMAT = "daggerheart.card-automation.definition.v1" as const
 
 export type CardZone = "loadout" | "vault"
-export type CardTier = "1" | "2" | "3" | "4"
+export type CardTier = CharacterTier
 export type CardAttributeKey = "agility" | "strength" | "finesse" | "instinct" | "presence" | "knowledge"
 export type CardAutomationCardType = "profession" | "ancestry" | "community" | "subclass" | "domain" | "variant"
 export type CardSelectableTargetGroupId = "attributes" | "experiences"

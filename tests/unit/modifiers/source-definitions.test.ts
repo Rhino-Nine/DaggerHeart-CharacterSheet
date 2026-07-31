@@ -311,6 +311,43 @@ describe("modifier source definitions", () => {
     expect(proficiencyTotal).toBe(3)
   })
 
+  it.each(["0", "11", "2.5", "1+1"])(
+    "does not derive level-owned sources from invalid Character Level %s",
+    (level) => {
+      const entries = collectSystemModifierEntries({
+        ...defaultSheetData,
+        level,
+      })
+
+      expect(entries.filter(entry => entry.source.type === "level")).toEqual([])
+    },
+  )
+
+  it.each([
+    ["1", []],
+    ["2", [2]],
+    ["5", [2, 5]],
+    ["8", [2, 5, 8]],
+    ["10", [2, 5, 8]],
+  ] as const)("derives valid level-owned sources at Character Level %s", (level, thresholds) => {
+    const entries = collectSystemModifierEntries({
+      ...defaultSheetData,
+      level,
+    })
+
+    expect(entries).toContainEqual(expect.objectContaining({
+      id: "level:current:minorThreshold",
+      presentation: expect.objectContaining({ value: Number(level) }),
+    }))
+    expect(entries).toContainEqual(expect.objectContaining({ id: "level:base:stressMax" }))
+    expect(entries).toContainEqual(expect.objectContaining({ id: "level:base:proficiency" }))
+    expect(
+      entries
+        .filter(entry => entry.id.startsWith("level:threshold-"))
+        .map(entry => Number(entry.id.match(/threshold-(\d+)/)?.[1])),
+    ).toEqual(thresholds)
+  })
+
   it("derives stress max base and upgrade modifiers from current level", () => {
     const sheetData = {
       ...defaultSheetData,

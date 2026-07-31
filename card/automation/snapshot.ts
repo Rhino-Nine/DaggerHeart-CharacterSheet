@@ -2,6 +2,11 @@ import type { StandardCard } from "@/card/card-types";
 import { readTargetValue } from "@/automation/core/target-accessors";
 import type { ModifierTargetId } from "@/automation/core/types";
 import type { SheetData } from "@/lib/sheet-data";
+import {
+  getCharacterTier,
+  parseCharacterLevel,
+  type CharacterLevel,
+} from "@/character/progression/tiers";
 import type {
   CardAutomationIR,
   CardAutomationSourceSnapshot,
@@ -43,7 +48,7 @@ export interface CardAutomationSnapshotCard extends CardAutomationCardFact {
 }
 
 export interface CardAutomationSnapshot {
-  level?: number;
+  level?: CharacterLevel;
   tier?: CardTier;
   proficiency?: number;
   targetValues: Partial<Record<ModifierTargetId, number>>;
@@ -75,13 +80,6 @@ function parseFiniteNumber(value: unknown): number | undefined {
   if (value.trim() === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function tierFromLevel(level: number): CardTier {
-  if (level >= 1 && level <= 4) return "1";
-  if (level >= 5 && level <= 7) return "2";
-  if (level >= 8 && level <= 10) return "3";
-  return "4";
 }
 
 function isNonEmptyCard(card: StandardCard | undefined | null): card is StandardCard {
@@ -151,7 +149,7 @@ export function buildCardAutomationSnapshot(
   sheetData: SheetData,
   options: BuildCardAutomationSnapshotOptions = {},
 ): CardAutomationSnapshot {
-  const level = parseFiniteNumber(sheetData.level);
+  const level = parseCharacterLevel(sheetData.level);
   const targetValues = readNumericTargetValues(sheetData);
   const experienceTargets: ModifierTargetId[] = [];
   sheetData.experience?.forEach((name, index) => {
@@ -168,7 +166,7 @@ export function buildCardAutomationSnapshot(
 
   return {
     level,
-    tier: level === undefined ? undefined : tierFromLevel(level),
+    tier: getCharacterTier(level),
     proficiency: readProficiency(sheetData),
     targetValues,
     selectableTargets: {

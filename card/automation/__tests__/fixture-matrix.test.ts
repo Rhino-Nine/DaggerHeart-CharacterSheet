@@ -513,7 +513,12 @@ describe("card automation fixture matrix", () => {
     expectNoContributions([builtinCard("domain", "fortified-armor")]);
   });
 
-  it("bare-bones contributes armor and threshold bases when armor is empty", () => {
+  it.each([
+    { level: "1", minor: 9, major: 19 },
+    { level: "2", minor: 11, major: 24 },
+    { level: "5", minor: 13, major: 31 },
+    { level: "8", minor: 15, major: 38 },
+  ])("bare-bones contributes tier bases at level $level when armor is empty", ({ level, minor, major }) => {
     expectContributions(
       [builtinCard("domain", "bare-bones")],
       [
@@ -527,16 +532,16 @@ describe("card automation fixture matrix", () => {
           id: "card:cardinst_bare-bones:bare-bones:bare-bones-minor",
           kind: "base",
           target: "minorThreshold",
-          value: 13,
+          value: minor,
         },
         {
           id: "card:cardinst_bare-bones:bare-bones:bare-bones-major",
           kind: "base",
           target: "majorThreshold",
-          value: 31,
+          value: major,
         },
       ],
-      { level: "8" },
+      { level },
     );
   });
 

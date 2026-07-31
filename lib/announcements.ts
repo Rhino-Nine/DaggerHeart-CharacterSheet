@@ -12,6 +12,23 @@ export interface Announcement {
 
 export const announcements: Announcement[] = [
   {
+    id: "2026-07-31-character-tier-calculation-fix",
+    date: "2026-07-31",
+    title: "V4.2.4 Preview",
+    content: `
+## 主要内容
+
+这次更新修复了角色等级到位阶的计算错误。现在会正确按照 1 级、2–4 级、5–7 级、8–10 级对应位阶 1–4。
+
+## 卡牌自动化修复
+
+- 修复“铁骨铮铮”在角色升到 2 级和 8 级时，基础阈值没有进入正确位阶的问题。
+- 未装备护甲时，“铁骨铮铮”现在会在 1 级提供 9/19、2–4 级提供 11/24、5–7 级提供 13/31、8–10 级提供 15/38 的基础阈值。
+- 自定义卡牌中使用角色位阶的自动化效果也会使用正确的位阶。
+
+`.trim(),
+  },
+  {
     id: "2026-07-10-content-pack-import-diagnostics",
     date: "2026-07-10",
     title: "V4.2.3 Preview",

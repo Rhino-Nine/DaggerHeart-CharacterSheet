@@ -13,16 +13,22 @@ import { ProficiencyEditor } from "@/components/upgrade-popover/proficiency-edit
 import { SubclassCardSelector } from "@/components/upgrade-popover/subclass-card-selector"
 import { NewExperienceEditor } from "@/components/upgrade-popover/new-experience-editor"
 import type { StandardCard } from "@/card/card-types"
+import {
+  getUpgradeBandLevelRange,
+  getUpgradeBandTitle,
+  getUpgradeDomainCardLevelFilter,
+  getUpgradeOptions,
+  type UpgradeBandKey,
+  type UpgradeOptionData,
+} from "@/data/list/upgrade"
 
 interface UpgradeSectionProps {
-  tier: number
-  title: string
+  upgradeBandKey: UpgradeBandKey
   description: string
   formData: SheetData
   isUpgradeChecked: (tier: string, index: number) => boolean
   handleUpgradeCheck: (tier: string, index: number) => void
   toggleUpgradeCheckbox: (checkKey: string, index: number, checked: boolean) => void  // 新增：纯粹的状态切换函数
-  getUpgradeOptions: (tier: number) => any[]
   onCardChange?: (index: number, card: StandardCard) => void
   onOpenCardModal?: (index: number, levels?: string[]) => void
   onOpenSubclassModal?: (index: number, profession?: string) => void
@@ -38,19 +44,20 @@ const ATTRIBUTE_NAMES: Record<string, string> = {
 }
 
 export function UpgradeSection({
-  tier,
-  title,
+  upgradeBandKey,
   description,
   formData,
   isUpgradeChecked,
   handleUpgradeCheck,
   toggleUpgradeCheckbox,
-  getUpgradeOptions,
   onCardChange,
   onOpenCardModal,
   onOpenSubclassModal,
 }: UpgradeSectionProps) {
-  const tierKey = `tier${tier}`
+  const tierKey = upgradeBandKey
+  const title = getUpgradeBandTitle(upgradeBandKey)
+  const { maxLevel } = getUpgradeBandLevelRange(upgradeBandKey)
+  const upgradeOptions = getUpgradeOptions(upgradeBandKey)
   const updateLevel = useSheetStore(state => state.updateLevel)
   const [openPopoverIndex, setOpenPopoverIndex] = useState<string | null>(null)
   const [isLevelExpanded, setIsLevelExpanded] = useState(false)
@@ -163,7 +170,7 @@ export function UpgradeSection({
   )
 
   // Handle direct modal opening for domain/subclass cards
-  const handleDirectModalOpen = (option: any) => {
+  const handleDirectModalOpen = (option: Pick<UpgradeOptionData, "label">) => {
     const label = option.label
 
     if (isDomainCardOption(label)) {
@@ -185,12 +192,7 @@ export function UpgradeSection({
         return
       }
 
-      // Calculate smart level filtering
-      const tierLevelCaps: Record<number, number> = { 1: 4, 2: 7, 3: 10 }
-      const levelCap = tierLevelCaps[tier] || 10
-      const currentLevel = parseInt(formData.level) || 0
-      const targetLevel = currentLevel > 0 ? Math.min(currentLevel, levelCap) : levelCap
-      const levelFilter = Array.from({ length: targetLevel }, (_, i) => String(i + 1))
+      const levelFilter = getUpgradeDomainCardLevelFilter(upgradeBandKey, formData.level)
 
       onOpenCardModal?.(emptySlotIndex, levelFilter)
     }
@@ -287,8 +289,7 @@ export function UpgradeSection({
       return (
         <DomainCardSelector
           formData={formData}
-          tier={tier}
-          onCardChange={onCardChange!}
+          maxLevel={maxLevel}
           onClose={() => setOpenPopoverIndex(null)}
           onOpenModal={(slotIndex, levels) => {
             setOpenPopoverIndex(null)
@@ -353,13 +354,13 @@ export function UpgradeSection({
       </div>
       <div className="p-1">
         <p className="!text-xs mb-2">
-          {tier === 1
+          {upgradeBandKey === "tier1"
             ? <>更新你的等级，从下方的升级列表中选择并标记<strong>两个</strong>选项。</>
             : <>更新你的等级，从下方的升级列表或更低级的列表中选择并标记<strong>两个</strong>选项。</>}
         </p>
 
         <div className="space-y-1">
-          {getUpgradeOptions(tier).map((option, index) => {
+          {upgradeOptions.map((option, index) => {
             const isAttrUpgrade = isAttributeUpgradeOption(option.label)
             const isExpUpgrade = isExperienceUpgradeOption(option.label)
             const needsPopover = isAttrUpgrade || isExpUpgrade
@@ -520,51 +521,19 @@ export function UpgradeSection({
         </div>
 
         <div className="mt-3 !text-xs">
-          {tier === 1 && (
-            <>
-              <span className="text-gray-800 dark:text-gray-200 mr-1">
-                将伤害阈值+1，选择一张不高于你当前等级(上限4级)的领域卡加入卡组。
-              </span>
-              <button
-                onClick={() => handleDirectModalOpen({ label: "领域卡加入卡组" })}
-                className="inline-flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors print:hidden"
-                title="选择领域卡"
-              >
-                <Edit className="w-2.5 h-2.5 text-gray-600" />
-              </button>
-            </>
-          )}
-          {tier === 2 && (
-            <>
-              <span className="text-gray-800 dark:text-gray-200 mr-1">
-                将伤害阈值+1，选择一张不高于你当前等级(上限7级)的领域卡加入卡组。
-              </span>
-              <button
-                onClick={() => handleDirectModalOpen({ label: "领域卡加入卡组" })}
-                className="inline-flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors print:hidden"
-                title="选择领域卡"
-              >
-                <Edit className="w-2.5 h-2.5 text-gray-600" />
-              </button>
-            </>
-          )}
-          {tier === 3 && (
-            <>
-              <span className="text-gray-800 dark:text-gray-200 mr-1">
-                将伤害阈值+1，选择一张不高于你当前等级(上限10级)的领域卡加入卡组。
-              </span>
-              <button
-                onClick={() => handleDirectModalOpen({ label: "领域卡加入卡组" })}
-                className="inline-flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors print:hidden"
-                title="选择领域卡"
-              >
-                <Edit className="w-2.5 h-2.5 text-gray-600" />
-              </button>
-            </>
-          )}
+          <span className="text-gray-800 dark:text-gray-200 mr-1">
+            将伤害阈值+1，选择一张不高于你当前等级(上限{maxLevel}级)的领域卡加入卡组。
+          </span>
+          <button
+            onClick={() => handleDirectModalOpen({ label: "领域卡加入卡组" })}
+            className="inline-flex items-center justify-center p-0.5 hover:bg-gray-100 rounded transition-colors print:hidden"
+            title="选择领域卡"
+          >
+            <Edit className="w-2.5 h-2.5 text-gray-600" />
+          </button>
         </div>
 
-        {tier === 1 && (
+        {upgradeBandKey === "tier1" && (
           <div
             className="group mt-8 -ml-1 inline-flex flex-row items-stretch rounded-r-md border border-l-0 border-gray-300 overflow-hidden print:hidden cursor-pointer"
             onClick={() => setIsLevelExpanded(prev => !prev)}

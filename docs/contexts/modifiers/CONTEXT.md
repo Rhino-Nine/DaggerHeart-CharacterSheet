@@ -36,6 +36,18 @@ _Avoid_: stored error state, import diagnostic
 A known base or modifier contribution produced from a Card Instance's automation.
 _Avoid_: user modifier, equipment modifier
 
+**Character Level**:
+The character's integer progression level from 1 through 10.
+_Avoid_: upgrade band, character tier
+
+**Character Tier**:
+The rules tier derived from Character Level by the canonical character-progression mapping: level 1 is Tier 1, levels 2-4 are Tier 2, levels 5-7 are Tier 3, and levels 8-10 are Tier 4. Invalid Character Levels have no Character Tier.
+_Avoid_: upgrade band key, equipment tier
+
+**Upgrade Band Key**:
+The legacy persisted/UI grouping key `tier1`, `tier2`, or `tier3`. These keys map to Character Tiers 2, 3, and 4 respectively, but are not Character Tiers.
+_Avoid_: character tier
+
 **Loadout Card**:
 A Card Instance in the character's active card configuration.
 _Avoid_: selected template
@@ -125,6 +137,8 @@ _Avoid_: manual adjustment
 - A **Reference Total** is calculated from **Known Sources**.
 - A **Card Instance** may produce **Card-Sourced Contributions** only through its own **Card Automation IR** and **Card Ability State**.
 - A **Card-Sourced Contribution** is a **Known Source**.
+- A **Character Tier** is derived from **Character Level** through `character/progression/tiers.ts`; it is not persisted independently.
+- A Card Automation Snapshot reads the derived **Character Tier**. An **Upgrade Band Key** and an Equipment Tier do not determine Character Tier.
 - A **Card Automation Requirement** is derived from current **Source State** and does not write **Stored State**.
 - **Card Automation Setup** responds to **Card Automation Requirements** and may write **Card Ability State** only through a **Modifier-Aware Behavior**.
 - Each committed **Card Automation Setup** write responds to one ability-level **Card Automation Requirement**. A player-facing setup session may process multiple ability-level requirements sequentially.
