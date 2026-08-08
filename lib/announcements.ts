@@ -14,7 +14,7 @@ export const announcements: Announcement[] = [
   {
     id: "2026-08-09-support-entry",
     date: "2026-08-09",
-    title: "顶部存档栏与更多菜单入口",
+    title: "V4.2.5 Preview",
     content: `
 ## 主要内容
 

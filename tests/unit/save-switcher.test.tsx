@@ -31,6 +31,7 @@ describe("SaveSwitcher", () => {
     const saveButton = screen.getByRole("button", { name: /打开存档管理/ })
 
     expect(toolbar).toHaveClass("justify-center")
+    expect(toolbar).toHaveClass("h-12", "md:h-10")
     expect(toolbar).not.toHaveClass("border", "shadow-sm")
     expect(saveButton).toHaveClass("h-full", "w-full", "justify-center")
     expect(saveButton).not.toHaveClass("border")

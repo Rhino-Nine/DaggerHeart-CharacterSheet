@@ -17,7 +17,7 @@ export function SaveSwitcher({
   const displayName = currentSave?.saveName || '加载中...'
 
   return (
-    <div className="flex h-12 items-center justify-center">
+    <div className="flex h-12 items-center justify-center md:h-10">
       <h1 className="sr-only">DaggerHeart 角色卡：{displayName}</h1>
 
       <button
