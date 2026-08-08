@@ -274,15 +274,27 @@ export default function HomeClientApp() {
   // 客户端挂载检测
   useEffect(() => {
     setIsClient(true)
+  }, [])
+
+  // 快捷键提示仅面向桌面端
+  useEffect(() => {
+    if (isMobile) {
+      setShowShortcutHint(false)
+      return
+    }
 
     // 显示快捷键提示（3秒后消失）
-    const timer = setTimeout(() => {
+    let hideTimer: ReturnType<typeof setTimeout> | undefined
+    const showTimer = setTimeout(() => {
       setShowShortcutHint(true)
-      setTimeout(() => setShowShortcutHint(false), 3000)
+      hideTimer = setTimeout(() => setShowShortcutHint(false), 3000)
     }, 1000)
 
-    return () => clearTimeout(timer)
-  }, [])
+    return () => {
+      clearTimeout(showTimer)
+      if (hideTimer) clearTimeout(hideTimer)
+    }
+  }, [isMobile])
 
   // 移动设备检测
   useEffect(() => {
@@ -751,12 +763,12 @@ export default function HomeClientApp() {
         <div className={`w-full transition-all duration-300 ${isDualPageMode && !isMobile ? 'overflow-x-auto' : 'md:max-w-[220mm]'}`}>
           {/* 角色卡区域 - 带相对定位 */}
           <div>
-            {/* 页面标题 - 打印时隐藏 */}
-            <div className={`print:hidden mb-3 text-center transition-all duration-300 ${isDualPageMode && !isMobile ? 'w-[425mm] min-w-[425mm]' : 'w-[210mm]'}`}>
+            {/* 存档与站点入口 - 打印时隐藏 */}
+            <div className={`mx-auto mb-1 print:hidden transition-all duration-300 ${isDualPageMode && !isMobile ? 'w-[425mm] min-w-[425mm]' : 'w-[210mm]'}`}>
               <SaveSwitcher
                 characterList={characterList}
                 currentCharacterId={currentCharacterId}
-                onRenameCharacter={renameCharacterHandler}
+                onOpenCharacterManagement={() => setCharacterManagementModalOpen(true)}
               />
             </div>
 
@@ -838,7 +850,7 @@ export default function HomeClientApp() {
       />
 
       {/* 快捷键提示 */}
-      {showShortcutHint && (
+      {!isMobile && showShortcutHint && (
         <div className="print:hidden fixed top-4 right-4 z-40 animate-in slide-in-from-top duration-300">
           <div className="bg-black bg-opacity-80 text-white px-4 py-3 rounded-lg text-sm backdrop-blur-sm">
             <div className="font-medium mb-2">⌨️ 快捷键提示</div>

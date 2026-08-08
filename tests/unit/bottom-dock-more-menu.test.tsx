@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import { BottomDock } from "@/components/layout/bottom-dock"
+import {
+  BottomDock,
+  DAGGERHEART_SUPPORT_URL,
+} from "@/components/layout/bottom-dock"
 
 const mainProps = {
   mode: "main" as const,
@@ -50,15 +53,25 @@ describe("BottomDock more menu", () => {
     expect(unreadDot).toBeTruthy()
     expect(unreadDot.className).not.toContain("ring-gray-900")
     fireEvent.pointerDown(screen.getByRole("button", { name: "更多" }))
-    expect(screen.getByText("NEW")).toBeTruthy()
+    expect(screen.getByText("NEW!").className).toContain("italic")
   })
 
-  it("links to About and GitHub from the more menu", () => {
+  it("links to site information, official support, and GitHub from the more menu", () => {
     render(<BottomDock {...mainProps} />)
 
     fireEvent.pointerDown(screen.getByRole("button", { name: "更多" }))
 
-    expect(screen.getByRole("menuitem", { name: "关于本站" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "GitHub 项目 / 下载" })).toBeTruthy()
+    const aboutLink = screen.getByRole("menuitem", { name: "关于本站" })
+    const supportLink = screen.getByRole("menuitem", { name: /支持正版/ })
+    const githubLink = screen.getByRole("menuitem", { name: "GitHub 项目 / 下载" })
+    const hotLabel = screen.getByText("HOT!")
+
+    expect(supportLink.getAttribute("href")).toBe(DAGGERHEART_SUPPORT_URL)
+    expect(supportLink.getAttribute("target")).toBe("_blank")
+    expect(supportLink.getAttribute("rel")).toContain("noopener")
+    expect(supportLink.getAttribute("rel")).toContain("noreferrer")
+    expect(hotLabel.className).toBe("ml-auto text-xs font-semibold italic text-red-600")
+    expect(aboutLink.compareDocumentPosition(githubLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(githubLink.compareDocumentPosition(supportLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

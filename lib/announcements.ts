@@ -12,6 +12,27 @@ export interface Announcement {
 
 export const announcements: Announcement[] = [
   {
+    id: "2026-08-09-support-entry",
+    date: "2026-08-09",
+    title: "顶部存档栏与更多菜单入口",
+    content: `
+## 主要内容
+
+这次更新重新整理了角色卡顶部区域，让存档与页面相关入口更加集中。
+
+## 存档与页面导航
+
+- 顶部现在点击存档名称即可打开存档管理。
+- 移动端不再显示仅适用于键盘操作的快捷键提示。
+
+## 支持正版
+
+- 匕首心众筹已开启！底部 Dock 的“更多”菜单新增“匕首心众筹”入口，点击后会在新窗口打开摩点众筹页面。（注：本工具依然是非官方独立作品）
+- [前往摩点众筹页面](https://zhongchou.modian.com/item/159038.html)
+
+`.trim(),
+  },
+  {
     id: "2026-07-31-character-tier-calculation-fix",
     date: "2026-07-31",
     title: "V4.2.4 Preview",

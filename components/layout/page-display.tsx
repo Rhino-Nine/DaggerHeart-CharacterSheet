@@ -1,8 +1,11 @@
 "use client"
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEffect, useMemo } from "react"
+
 import { PageVisibilityDropdown } from "@/components/ui/page-visibility-dropdown"
-import { getTabPages } from "@/lib/page-registry"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
+import { getTabPages, type PageDefinition } from "@/lib/page-registry"
 import type { SheetData } from "@/lib/sheet-data"
 
 interface PageDisplayProps {
@@ -21,11 +24,65 @@ interface PageDisplayProps {
   onSwitchToNextPage: () => void
 }
 
+interface PageTabsBarProps {
+  ariaLabel: string
+  isMobile: boolean
+  visibleTabs: PageDefinition[]
+}
+
+function PageTabsBar({ ariaLabel, isMobile, visibleTabs }: PageTabsBarProps) {
+  return (
+    <div className="tabs-container w-full overflow-x-auto">
+      <TabsList
+        aria-label={ariaLabel}
+        className={cn(
+          "grid w-full rounded-t-lg rounded-b-none border border-b-0 border-border bg-muted/70 p-1 shadow-sm transition-colors duration-200",
+          isMobile ? "h-12" : "h-11",
+        )}
+        style={{
+          gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr)) 2.75rem`,
+        }}
+      >
+        {visibleTabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.tabValue || tab.id}
+            className="h-full min-w-0 rounded-sm px-2 py-0 text-sm text-muted-foreground transition-colors duration-200 hover:bg-background/60 hover:text-foreground data-[state=active]:text-foreground"
+          >
+            <span className="truncate">{tab.label}</span>
+          </TabsTrigger>
+        ))}
+
+        <div className="flex h-full min-w-0 items-center justify-center border-l border-border/70 pl-1">
+          <PageVisibilityDropdown />
+        </div>
+      </TabsList>
+    </div>
+  )
+}
+
+function PageTabContents({ visibleTabs }: Pick<PageTabsBarProps, "visibleTabs">) {
+  return (
+    <>
+      {visibleTabs.map((tab) => {
+        const Component = tab.component
+        return (
+          <TabsContent
+            key={tab.id}
+            value={tab.tabValue || tab.id}
+            className="mt-0 [&_.a4-page]:rounded-t-none"
+          >
+            <Component />
+          </TabsContent>
+        )
+      })}
+    </>
+  )
+}
+
 export function PageDisplay({
   isDualPageMode,
   isMobile,
-  leftPageId,
-  rightPageId,
   leftTabValue,
   rightTabValue,
   currentTabValue,
@@ -36,187 +93,117 @@ export function PageDisplay({
   onSwitchToPrevPage,
   onSwitchToNextPage,
 }: PageDisplayProps) {
-  
-  // 生成可见的tab配置
-  const getVisibleTabs = () => {
-    if (!formData) {
-      return []
+  const visibleTabs = useMemo(() => getTabPages(formData), [formData])
+  const visibleTabValues = useMemo(
+    () => visibleTabs.map((tab) => tab.tabValue || tab.id),
+    [visibleTabs],
+  )
+
+  useEffect(() => {
+    const firstVisibleTab = visibleTabValues[0]
+    if (!firstVisibleTab) return
+
+    if (!visibleTabValues.includes(currentTabValue)) {
+      onSetCurrentTab(firstVisibleTab)
     }
-    return getTabPages(formData)
-  }
+
+    const resolvedLeftTab = visibleTabValues.includes(leftTabValue)
+      ? leftTabValue
+      : firstVisibleTab
+    if (resolvedLeftTab !== leftTabValue) {
+      onSetLeftTab(resolvedLeftTab)
+    }
+
+    if (!visibleTabValues.includes(rightTabValue)) {
+      const rightFallback = visibleTabValues.find((tabValue) => tabValue !== resolvedLeftTab)
+        || firstVisibleTab
+      onSetRightTab(rightFallback)
+    }
+  }, [
+    currentTabValue,
+    leftTabValue,
+    onSetCurrentTab,
+    onSetLeftTab,
+    onSetRightTab,
+    rightTabValue,
+    visibleTabValues,
+  ])
 
   return (
-    <div className={`relative w-full mx-auto transition-all duration-300 ${isDualPageMode && !isMobile ? 'md:max-w-[425mm]' : 'md:max-w-[210mm]'}`}>
-      
-      {/* 双页模式布局 */}
+    <div
+      className={cn(
+        "relative mx-auto w-full transition-all duration-300",
+        isDualPageMode && !isMobile ? "md:max-w-[425mm]" : "md:max-w-[210mm]",
+      )}
+    >
       {isDualPageMode && !isMobile ? (
-        <div className="overflow-x-auto w-full">
-          <div className="grid grid-cols-2 gap-1 w-[425mm] mx-auto min-w-[425mm]">
-          {/* 左页 */}
-          <div className="w-[210mm]">
-            <Tabs value={leftTabValue} onValueChange={onSetLeftTab} className="w-[210mm]">
-              {/* 左页Tab导航 */}
-              <div className="w-full overflow-x-auto tabs-container">
-                <TabsList className="grid w-full transition-all duration-300 ease-in-out h-10"
-                  style={{
-                    gridTemplateColumns: `repeat(${getVisibleTabs().length}, 1fr) auto`
-                  }}>
-                  {/* 左页tabs */}
-                  {getVisibleTabs().map((tab, index) => (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="transition-all duration-200 ease-in-out animate-in slide-in-from-right-2 py-1.5 text-sm"
-                      style={{
-                        animationDelay: `${index * 50}ms`
-                      }}
-                    >
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
+        <div className="w-full overflow-x-auto">
+          <div className="mx-auto grid w-[425mm] min-w-[425mm] grid-cols-2 gap-1">
+            <div className="w-[210mm]">
+              <Tabs value={leftTabValue} onValueChange={onSetLeftTab} className="w-[210mm]">
+                <PageTabsBar
+                  ariaLabel="左侧角色卡页面"
+                  isMobile={false}
+                  visibleTabs={visibleTabs}
+                />
+                <PageTabContents visibleTabs={visibleTabs} />
+              </Tabs>
+            </div>
 
-                  {/* 页面管理下拉菜单 */}
-                  <div className="flex items-center justify-center min-w-[44px]">
-                    <PageVisibilityDropdown />
-                  </div>
-                </TabsList>
-              </div>
-
-              {/* 左页Tab内容 */}
-              {getVisibleTabs().map((tab) => {
-                const Component = tab.component
-                return (
-                  <TabsContent key={tab.id} value={tab.tabValue || tab.id}>
-                    <Component />
-                  </TabsContent>
-                )
-              })}
-            </Tabs>
+            <div className="w-[210mm]">
+              <Tabs value={rightTabValue} onValueChange={onSetRightTab} className="w-[210mm]">
+                <PageTabsBar
+                  ariaLabel="右侧角色卡页面"
+                  isMobile={false}
+                  visibleTabs={visibleTabs}
+                />
+                <PageTabContents visibleTabs={visibleTabs} />
+              </Tabs>
+            </div>
           </div>
-          
-          {/* 右页 */}
-          <div className="w-[210mm]">
-            <Tabs value={rightTabValue} onValueChange={onSetRightTab} className="w-[210mm]">
-              {/* 右页Tab导航 */}
-              <div className="w-full overflow-x-auto tabs-container">
-                <TabsList className="grid w-full transition-all duration-300 ease-in-out h-10"
-                  style={{
-                    gridTemplateColumns: `repeat(${getVisibleTabs().length}, 1fr) auto`
-                  }}>
-                  {/* 右页tabs */}
-                  {getVisibleTabs().map((tab, index) => (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="transition-all duration-200 ease-in-out animate-in slide-in-from-right-2 py-1.5 text-sm"
-                      style={{
-                        animationDelay: `${index * 50}ms`
-                      }}
-                    >
-                      {tab.label}
-                    </TabsTrigger>
-                  ))}
-
-                  {/* 页面管理下拉菜单 */}
-                  <div className="flex items-center justify-center min-w-[44px]">
-                    <PageVisibilityDropdown />
-                  </div>
-                </TabsList>
-              </div>
-
-              {/* 右页Tab内容 */}
-              {getVisibleTabs().map((tab) => {
-                const Component = tab.component
-                return (
-                  <TabsContent key={tab.id} value={tab.tabValue || tab.id}>
-                    <Component />
-                  </TabsContent>
-                )
-              })}
-            </Tabs>
-          </div>
-        </div>
         </div>
       ) : (
-        /* 单页模式布局（原有布局） */
         <Tabs value={currentTabValue} onValueChange={onSetCurrentTab} className="w-[210mm]">
-          {/* 支持移动端滚动的Tab容器 */}
-          <div className="w-full overflow-x-auto tabs-container">
-            <TabsList className={`grid w-full transition-all duration-300 ease-in-out ${isMobile ? 'h-12' : 'h-10'}`}
-              style={{
-                gridTemplateColumns: `repeat(${getVisibleTabs().length}, 1fr) auto`
-              }}>
-              {/* 动态渲染可见的tabs - 填满可用空间 */}
-              {getVisibleTabs().map((tab, index) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className={`transition-all duration-200 ease-in-out animate-in slide-in-from-right-2 ${isMobile ? 'py-2.5 text-sm' : 'py-1.5 text-sm'}`}
-                  style={{
-                    animationDelay: `${index * 50}ms`
-                  }}
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-
-              {/* 页面管理下拉菜单 - 固定宽度 */}
-              <div className="flex items-center justify-center min-w-[44px]">
-                <PageVisibilityDropdown />
-              </div>
-            </TabsList>
-          </div>
-
-          {/* 动态渲染Tab内容 */}
-          {getVisibleTabs().map((tab) => {
-            const Component = tab.component
-            return (
-              <TabsContent key={tab.id} value={tab.tabValue || tab.id}>
-                <Component />
-              </TabsContent>
-            )
-          })}
+          <PageTabsBar
+            ariaLabel="角色卡页面"
+            isMobile={isMobile}
+            visibleTabs={visibleTabs}
+          />
+          <PageTabContents visibleTabs={visibleTabs} />
         </Tabs>
       )}
 
-      {/* 左侧切换区域 - 仅桌面端单页模式显示 */}
       {!isDualPageMode && !isMobile && (
         <div
-          className="print:hidden hidden md:block absolute -left-20 w-16 flex items-center justify-center cursor-pointer group z-20"
-          style={{ top: '48px', bottom: 0 }}
+          className="group absolute -left-20 z-20 hidden w-16 cursor-pointer items-center justify-center print:hidden md:flex"
+          style={{ top: "44px", bottom: 0 }}
           onClick={onSwitchToPrevPage}
           title="上一页 (←) - 循环切换"
         >
-          {/* 悬停时显示的背景 */}
-          <div className="absolute inset-0 bg-gray-100 opacity-0 group-hover:opacity-50 transition-opacity duration-200 rounded-l-lg"></div>
-          {/* 箭头图标 */}
-          <div className="relative bg-white shadow-md group-hover:shadow-lg p-2 rounded-full opacity-60 group-hover:opacity-100 transition-all duration-200 group-hover:scale-110 group-active:scale-90">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="absolute inset-0 rounded-l-lg bg-gray-100 opacity-0 transition-opacity duration-200 group-hover:opacity-50" />
+          <div className="relative rounded-full bg-white p-2 opacity-60 shadow-md transition-all duration-200 group-hover:scale-110 group-hover:opacity-100 group-hover:shadow-lg group-active:scale-90">
+            <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </div>
         </div>
       )}
 
-      {/* 右侧切换区域 - 仅桌面端单页模式显示 */}
       {!isDualPageMode && !isMobile && (
         <div
-          className="print:hidden hidden md:block absolute -right-20 w-16 flex items-center justify-center cursor-pointer group z-20"
-          style={{ top: '48px', bottom: 0 }}
+          className="group absolute -right-20 z-20 hidden w-16 cursor-pointer items-center justify-center print:hidden md:flex"
+          style={{ top: "44px", bottom: 0 }}
           onClick={onSwitchToNextPage}
           title="下一页 (→) - 循环切换"
         >
-          {/* 悬停时显示的背景 */}
-          <div className="absolute inset-0 bg-gray-100 opacity-0 group-hover:opacity-50 transition-opacity duration-200 rounded-r-lg"></div>
-          {/* 箭头图标 */}
-          <div className="relative bg-white shadow-md group-hover:shadow-lg p-2 rounded-full opacity-60 group-hover:opacity-100 transition-all duration-200 group-hover:scale-110 group-active:scale-90">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="absolute inset-0 rounded-r-lg bg-gray-100 opacity-0 transition-opacity duration-200 group-hover:opacity-50" />
+          <div className="relative rounded-full bg-white p-2 opacity-60 shadow-md transition-all duration-200 group-hover:scale-110 group-hover:opacity-100 group-hover:shadow-lg group-active:scale-90">
+            <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
         </div>
       )}
-
     </div>
   )
 }

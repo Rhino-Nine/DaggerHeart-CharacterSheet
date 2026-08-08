@@ -20,6 +20,7 @@ import {
   FileType,
   FolderOpen,
   Github,
+  HeartHandshake,
   Info,
   Layers,
   Megaphone,
@@ -32,6 +33,8 @@ import {
 import { navigateToPage, cn } from "@/lib/utils"
 import { DualPageToggle } from "@/components/ui/dual-page-toggle"
 import { MAX_CHARACTERS } from "@/lib/multi-character-storage"
+
+export const DAGGERHEART_SUPPORT_URL = "https://zhongchou.modian.com/item/159038.html"
 
 // 模式类型
 type BottomDockMode = 'main' | 'preview'
@@ -323,7 +326,7 @@ function MainModeContent(props: MainModeProps) {
               <Megaphone className={cn("mr-2", isMobile ? "h-5 w-5" : "h-4 w-4")} />
               <span>更新公告</span>
               {props.hasUnreadAnnouncements && (
-                <span className="ml-auto text-xs font-semibold text-red-600">NEW</span>
+                <span className="ml-auto text-xs font-semibold italic text-red-600">NEW!</span>
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -339,6 +342,19 @@ function MainModeContent(props: MainModeProps) {
               >
                 <Github className={cn("mr-2", isMobile ? "h-5 w-5" : "h-4 w-4")} />
                 GitHub 项目 / 下载
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild className={cn(isMobile && "py-3 px-4")}>
+              <a
+                href={DAGGERHEART_SUPPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="支持正版：前往摩点众筹页面（新窗口打开）"
+              >
+                <HeartHandshake className={cn("mr-2", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+                <span>匕首心众筹</span>
+                <span className="ml-auto text-xs font-semibold italic text-red-600">HOT!</span>
               </a>
             </DropdownMenuItem>
           </DropdownMenuContent>
