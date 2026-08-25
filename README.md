@@ -60,5 +60,5 @@
 
 © 2024 Darrington Press.
 
-Daggerheart系统参考文档（System Reference Document, SRD）及其所有文本内容是Critical Role Productions, LLC.的专属财产。
+Daggerheart 系统参考文档（System Reference Document, SRD）及其所有文本内容是Critical Role Productions, LLC.的专属财产。
 本工具部分内容参考了 [Daggerheart SRD v1.0](https://darringtonpress.com/daggerheart) 中的公开信息。
